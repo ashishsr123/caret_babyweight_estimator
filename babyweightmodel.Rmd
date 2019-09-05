@@ -1,0 +1,120 @@
+---
+title: "baby_weight_prediction"
+output: html_document
+---
+
+```{r get data, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+train_file <- "data/train_data.csv"
+eval_file <- "data/eval_data.csv"
+header <- c(
+    "weight_pounds", 
+    "is_male", "mother_age", "mother_race", "plurality", "gestation_weeks", 
+    "mother_married", "cigarette_use", "alcohol_use", 
+    "key")
+
+target <- "weight_pounds"
+key <- "key"
+features <- setdiff(header, c(target, key))
+
+train_data <- read.table(train_file, col.names = header, sep=",")
+eval_data <- read.table(eval_file, col.names = header, sep=",")
+
+```
+
+## R Markdown
+
+Train the model
+In this example, we will train an XGboost Tree model for regression.
+
+```{r train}
+trainControl <- trainControl(method = 'boot', number = 10)
+hyper_parameters <- expand.grid(
+    nrounds = 100,
+    max_depth = 6,
+    eta = 0.3,
+    gamma = 0,
+    colsample_bytree = 1,
+    min_child_weight = 1,
+    subsample = 1
+)
+  
+print('Training the model...')
+
+model <- train(
+    y=train_data$weight_pounds, 
+    x=train_data[, features], 
+    preProc = c("center", "scale"),
+    method='xgbTree', 
+    trControl=trainControl,
+    tuneGrid=hyper_parameters
+)
+
+print('Model is trained.')
+```
+
+Evaluate the model¶
+
+```{r Evaluate the model¶}
+eval(model)
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of 
+```{r save the model}
+
+model_dir <- "models"
+model_name <- "caret_babyweight_estimator"
+# Saving the trained model
+dir.create(model_dir, showWarnings = FALSE)
+dir.create(file.path(model_dir, model_name), showWarnings = FALSE)
+saveRDS(model, file.path(model_dir, model_name, "trained_model.rds"))
+
+```
+
+Model Serving
+
+```{r}
+xgbtree <- readRDS(file.path(model_dir, model_name, "trained_model.rds"))
+
+estimate_babyweights <- function(instances_json){
+    library("rjson")
+    instances <- jsonlite::fromJSON(instances_json)
+    df_instances <- data.frame(instances)
+    # fix data types
+    boolean_columns <- c("is_male", "mother_married", "cigarette_use", "alcohol_use")
+    for(col in boolean_columns){
+        df_instances[[col]] <- as.logical(df_instances[[col]])
+    }
+    
+    estimates <- predict(xgbtree, df_instances)
+    return(estimates) 
+}
+
+instances_json <- '
+[
+    {
+        "is_male": "TRUE",
+        "mother_age": 28,
+        "mother_race": 8,
+        "plurality": 1,
+        "gestation_weeks":  28,
+        "mother_married": "TRUE",
+        "cigarette_use": "FALSE",
+        "alcohol_use": "FALSE"
+     },
+    {
+        "is_male": "FALSE",
+        "mother_age": 38,
+        "mother_race": 18,
+        "plurality": 1,
+        "gestation_weeks":  28,
+        "mother_married": "TRUE",
+        "cigarette_use": "TRUE",
+        "alcohol_use": "TRUE"
+     }
+]
+'
+estimate <- round(estimate_babyweights(instances_json), digits = 2)
+print(paste("Estimated weight(s):", estimate))
+```
+

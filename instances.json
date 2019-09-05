@@ -1,0 +1,22 @@
+[
+  {
+  "is_male": "TRUE",
+  "mother_age": 28,
+  "mother_race": 8,
+  "plurality": 1,
+  "gestation_weeks":  28,
+  "mother_married": "TRUE",
+  "cigarette_use": "FALSE",
+  "alcohol_use": "FALSE"
+  },
+  {
+  "is_male": "FALSE",
+  "mother_age": 38,
+  "mother_race": 18,
+  "plurality": 1,
+  "gestation_weeks":  28,
+  "mother_married": "TRUE",
+  "cigarette_use": "TRUE",
+  "alcohol_use": "TRUE"
+  }
+]
